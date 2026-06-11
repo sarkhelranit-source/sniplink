@@ -1,16 +1,57 @@
-# React + Vite
+# Serverless URL Shortener & Redirect Engine
+An enterprise-grade, high-performance, cost-effective serverless URL shortening application built on AWS and globally accelerated via CloudFront and Cloudflare.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 🏗️ Architecture Design
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![Sniplink Architecture Diagram](sniplink_architecture_1781205108283.png)
 
-## React Compiler
+### ⚡ Technical Execution Flow
+1. **DNS Resolution**: The user requests a page or short URL via `snip.rsarkhel.com`. Cloudflare resolves this to the Amazon CloudFront distribution CNAME (`d1uzz3go2auj2j.cloudfront.net`).
+2. **Global Acceleration**: CloudFront terminates the SSL (using a certificate generated in AWS Certificate Manager) and inspects the URL path.
+3. **Smart Path Routing**:
+   * **Static Assets**: Requests for `/index.html`, `/assets/*` or `favicon.svg` are securely routed via **Origin Access Control (OAC)** to a private S3 bucket (`sniplink-frontend`).
+   * **Write Action**: `POST /shorten` requests are routed directly to the Amazon API Gateway HTTP API.
+   * **Read Action (Fallback)**: Any dynamic shortcode route `/abc123` is intercepted by the catch-all CloudFront behavior and sent to API Gateway.
+4. **Serverless Execution**:
+   * **Create**: `CreateShortURL` generates a random base64url 6-character hash, stores the mapping (`shortcode` ➔ `originalUrl`) in Amazon DynamoDB, and returns the shortlink.
+   * **Redirect**: `RedirectToOriginal` performs a DynamoDB query and returns a `301 Moved Permanently` header with the target destination, redirecting the client browser in milliseconds.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 💰 Operational Economics
+Since the entire stack is 100% serverless, it inherits **scale-to-zero** economics.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| Component | AWS Resource | Free Tier Coverage | Monthly Cost (100,000 requests/mo) |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | CloudFront + S3 | 1 TB data transfer / 100M requests | $0.00 |
+| **Compute** | AWS Lambda | 1 Million free requests / month | $0.00 |
+| **Database** | DynamoDB | 25 GB free storage | $0.00 |
+| **Routing** | API Gateway (HTTP) | N/A (Highly optimized pricing) | ~$0.10 |
+| **Security** | AWS Certificate Manager | Unlimited SSL certificates | $0.00 |
+| **Total Cost** | | | **~$0.10 / month** |
+
+---
+
+## 🛠️ Deployment Configuration
+
+### Frontend Deployment
+The React frontend is compiled to clean HTML/CSS/JS and synchronized to S3. To prevent caching issues with modern deployments, the `index.html` file is explicitly uploaded with a `max-age=0` cache header.
+
+```bash
+# 1. Compile production assets
+npm run build
+
+# 2. Sync files to S3 (excluding index.html to cache CSS/JS files indefinitely)
+aws s3 sync dist/ s3://sniplink-frontend/ --delete
+
+# 3. Force upload index.html without cache headers
+aws s3 cp dist/index.html s3://sniplink-frontend/index.html \
+  --content-type "text/html" \
+  --cache-control "no-store, no-cache, must-revalidate, max-age=0"
+```
+
+### Infrastructure as Code (IaC)
+The backend database, API endpoints, and Lambda IAM roles are fully defined in the CloudFormation template:
+* 📄 [datacenter-priority-stack.yml](file:///c:/Users/USER/OneDrive/Documents/url-shortner/datacenter-priority-stack.yml)
