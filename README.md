@@ -5,7 +5,7 @@ An enterprise-grade, high-performance, cost-effective serverless URL shortening 
 
 ## 🏗️ Architecture Design
 
-![Sniplink Architecture Diagram](sniplink_architecture_1781205108283.png)
+![Sniplink Architecture Diagram](sniplink_architecture_fixed_1781205504234.png)
 
 ### ⚡ Technical Execution Flow
 1. **DNS Resolution**: The user requests a page or short URL via `snip.rsarkhel.com`. Cloudflare resolves this to the Amazon CloudFront distribution CNAME (`d1uzz3go2auj2j.cloudfront.net`).
