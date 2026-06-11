@@ -57,7 +57,7 @@ function App() {
       }
 
       const data = await res.json()
-      const generatedShortUrl = data.shortUrl || `${API_URL}/${data.shortcode}`
+      const generatedShortUrl = `https://rsarkhel.com/${data.shortcode}`
       setShortUrl(generatedShortUrl)
       setShortcode(data.shortcode)
 
