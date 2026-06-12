@@ -27,10 +27,10 @@ Since the entire stack is 100% serverless, it inherits **scale-to-zero** economi
 | :--- | :--- | :--- | :--- |
 | **Frontend** | CloudFront + S3 | 1 TB data transfer / 100M requests | $0.00 |
 | **Compute** | AWS Lambda | 1 Million free requests / month | $0.00 |
-| **Database** | DynamoDB | 25 GB free storage | $0.00 |
+| **Database** | DynamoDB | 25 GB free storage | ~$0.07 (On-Demand) |
 | **Routing** | API Gateway (HTTP) | N/A (Highly optimized pricing) | ~$0.10 |
 | **Security** | AWS Certificate Manager | Unlimited SSL certificates | $0.00 |
-| **Total Cost** | | | **~$0.10 / month** |
+| **Total Cost** | | | **~$0.17 / month** |
 
 ---
 
