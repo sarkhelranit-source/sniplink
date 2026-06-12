@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: URL Shortner
 
 # ----------------- Parameters -----------------
@@ -44,7 +44,7 @@ Resources:
       Description: Allows Lambda functions to call AWS services on your behalf.
       Policies:
         - PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Resource: !GetAtt DynamoDBTableUrlshortenertable.Arn
                 Action:
@@ -54,7 +54,7 @@ Resources:
                 Sid: VisualEditor0
           PolicyName: CreateShortURLLambdaRolePolicy
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Action: sts:AssumeRole
             Effect: Allow
@@ -74,7 +74,7 @@ Resources:
       Description: Allows Lambda functions to call AWS services on your behalf.
       Policies:
         - PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Resource: !GetAtt DynamoDBTableUrlshortenertable.Arn
                 Action:
@@ -84,7 +84,7 @@ Resources:
                 Sid: VisualEditor0
           PolicyName: RedirectLambdaRolePolicy
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Action: sts:AssumeRole
             Effect: Allow
@@ -99,9 +99,9 @@ Resources:
       Architectures:
         - x86_64
       Code:
-        S3Bucket: cc-demo-bucket-p1
-        S3Key: create-short-url.mjs
-      Description: ''
+        S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
+        S3Key: create-short-url.zip
+      Description: ""
       EphemeralStorage:
         Size: 512
       Handler: index.handler
@@ -127,9 +127,9 @@ Resources:
       Architectures:
         - x86_64
       Code:
-        S3Bucket: cc-demo-bucket-p1
-        S3Key: redirect-to-original.mjs
-      Description: ''
+        S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
+        S3Key: redirect-to-original.zip
+      Description: ""
       EphemeralStorage:
         Size: 512
       Handler: index.handler
@@ -188,7 +188,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       IntegrationUri: arn:aws:lambda:us-east-1:263846838953:function:CreateShortURL
-      PayloadFormatVersion: '2.0'
+      PayloadFormatVersion: "2.0"
       ConnectionType: INTERNET
       RequestTemplates: {}
       ResponseParameters: {}
@@ -216,7 +216,7 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       IntegrationUri: arn:aws:lambda:us-east-1:263846838953:function:RedirectToOriginal
-      PayloadFormatVersion: '2.0'
+      PayloadFormatVersion: "2.0"
       ConnectionType: INTERNET
       RequestTemplates: {}
       ResponseParameters: {}
@@ -234,3 +234,132 @@ Resources:
       Action: lambda:InvokeFunction
       SourceArn: arn:aws:execute-api:us-east-1:263846838953:mwraaebttk/*/*/{shortcode}
       Principal: apigateway.amazonaws.com
+
+  CloudFrontDistribution:
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFront::Distribution
+    DeletionPolicy: Delete
+    Properties:
+      DistributionConfig:
+        Logging:
+          IncludeCookies: false
+          Bucket: ""
+          Prefix: ""
+        Comment: ""
+        DefaultRootObject: index.html
+        Origins:
+          - ConnectionTimeout: 10
+            OriginAccessControlId: E1S7ZZV26LDPGB
+            ConnectionAttempts: 3
+            OriginCustomHeaders: []
+            DomainName: sniplink-frontend.s3.us-east-1.amazonaws.com
+            OriginShield:
+              Enabled: false
+            S3OriginConfig:
+              OriginReadTimeout: 30
+              OriginAccessIdentity: ""
+            OriginPath: ""
+            Id: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+        ViewerCertificate:
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+          AcmCertificateArn: arn:aws:acm:us-east-1:263846838953:certificate/b96d4d9c-52ae-4fec-8f19-612e2b5e7bc3
+        PriceClass: PriceClass_All
+        DefaultCacheBehavior:
+          Compress: true
+          FunctionAssociations: []
+          LambdaFunctionAssociations: []
+          TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+          ViewerProtocolPolicy: redirect-to-https
+          GrpcConfig:
+            Enabled: false
+          TrustedSigners: []
+          FieldLevelEncryptionId: ""
+          TrustedKeyGroups: []
+          AllowedMethods:
+            - HEAD
+            - GET
+          CachedMethods:
+            - HEAD
+            - GET
+          SmoothStreaming: false
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        Staging: false
+        CustomErrorResponses: []
+        ContinuousDeploymentPolicyId: ""
+        OriginGroups:
+          Quantity: 0
+          Items: []
+        Enabled: true
+        Aliases:
+          - snip.rsarkhel.com
+        IPV6Enabled: true
+        WebACLId: arn:aws:wafv2:us-east-1:263846838953:global/webacl/CreatedByCloudFront-da2b325f/daa9379e-8bb1-4bbb-ab23-d7cbecdd8ef0
+        HttpVersion: http2
+        Restrictions:
+          GeoRestriction:
+            Locations: []
+            RestrictionType: none
+        CacheBehaviors: []
+      Tags:
+        - Value: Sniplink-distribution
+          Key: Name
+
+  CloudFrontOriginAccessControl:
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFront::OriginAccessControl
+    DeletionPolicy: Delete
+    Properties:
+      OriginAccessControlConfig:
+        SigningBehavior: always
+        Description: ""
+        SigningProtocol: sigv4
+        OriginAccessControlOriginType: s3
+        Name: sniplink-frontend.s3.us-east-1.amazonaws.com
+
+  S3BucketSniplinkfrontend:
+    UpdateReplacePolicy: Retain
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AbacStatus: Disabled
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketName: sniplink-frontend
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            BlockedEncryptionTypes:
+              EncryptionType:
+                - SSE-C
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  S3BucketPolicySniplinkfrontend:
+    UpdateReplacePolicy: Retain
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Delete
+    Properties:
+      Bucket: sniplink-frontend
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Condition:
+              StringEquals:
+                AWS:SourceArn: arn:aws:cloudfront::263846838953:distribution/E2WN2KCMZOO0Q5
+            Resource: arn:aws:s3:::sniplink-frontend/*
+            Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Sid: AllowCloudFrontServicePrincipal
+        Id: PolicyForCloudFrontPrivateContent
