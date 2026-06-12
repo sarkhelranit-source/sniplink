@@ -8,7 +8,7 @@ An enterprise-grade, high-performance, cost-effective serverless URL shortening 
 ![Sniplink Architecture Diagram](sniplink_architecture_fixed_1781205504234.png)
 
 ### ⚡ Technical Execution Flow
-1. **DNS Resolution**: The user requests a page or short URL via `snip.rsarkhel.com`. Cloudflare resolves this to the Amazon CloudFront distribution CNAME (`d1uzz3go2auj2j.cloudfront.net`).
+1. **DNS Resolution**: The user requests a page or short URL via `snip.yourdomain.com`. Cloudflare resolves this to the Amazon CloudFront distribution CNAME (`d1xxxxxxxxxxxx.cloudfront.net`).
 2. **Global Acceleration**: CloudFront terminates the SSL (using a certificate generated in AWS Certificate Manager) and inspects the URL path.
 3. **Smart Path Routing**:
    * **Static Assets**: Requests for `/index.html`, `/assets/*` or `favicon.svg` are securely routed via **Origin Access Control (OAC)** to a private S3 bucket (`sniplink-frontend`).
