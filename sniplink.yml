@@ -260,6 +260,12 @@ Resources:
               OriginAccessIdentity: ""
             OriginPath: ""
             Id: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+          - Id: url-shortener-api
+            DomainName: mwraaebttk.execute-api.us-east-1.amazonaws.com
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
         ViewerCertificate:
           MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
@@ -269,7 +275,7 @@ Resources:
           Compress: true
           FunctionAssociations: []
           LambdaFunctionAssociations: []
-          TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+          TargetOriginId: url-shortener-api
           ViewerProtocolPolicy: redirect-to-https
           GrpcConfig:
             Enabled: false
@@ -278,7 +284,12 @@ Resources:
           TrustedKeyGroups: []
           AllowedMethods:
             - HEAD
+            - DELETE
+            - POST
             - GET
+            - OPTIONS
+            - PUT
+            - PATCH
           CachedMethods:
             - HEAD
             - GET
@@ -300,7 +311,43 @@ Resources:
           GeoRestriction:
             Locations: []
             RestrictionType: none
-        CacheBehaviors: []
+        CacheBehaviors:
+          - PathPattern: /index.html
+            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            AllowedMethods:
+              - HEAD
+              - GET
+            CachedMethods:
+              - HEAD
+              - GET
+            Compress: true
+            SmoothStreaming: false
+          - PathPattern: /assets/*
+            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            AllowedMethods:
+              - HEAD
+              - GET
+            CachedMethods:
+              - HEAD
+              - GET
+            Compress: true
+            SmoothStreaming: false
+          - PathPattern: /favicon.svg
+            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            AllowedMethods:
+              - HEAD
+              - GET
+            CachedMethods:
+              - HEAD
+              - GET
+            Compress: true
+            SmoothStreaming: false
       Tags:
         - Value: Sniplink-distribution
           Key: Name
