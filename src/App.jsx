@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './index.css'
 import { Authenticator, ThemeProvider } from '@aws-amplify/ui-react'
+import Profile from './Profile'
 import '@aws-amplify/ui-react/styles.css'
 import { fetchAuthSession } from 'aws-amplify/auth'
 
@@ -55,6 +56,7 @@ function App() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [history, setHistory] = useState([])
+  const [activeTab, setActiveTab] = useState('shortener') // 'shortener' or 'profile'
 
   const isValidUrl = (string) => {
     try {
@@ -186,15 +188,42 @@ function App() {
       <section className="shortener">
         <div className="container">
           <ThemeProvider theme={theme} colorMode="dark">
-            <Authenticator>
+            <Authenticator
+              formFields={{
+                signIn: {
+                  username: { label: 'Email', placeholder: 'Enter your Email' }
+                },
+                signUp: {
+                  username: { label: 'Email', placeholder: 'Enter your Email' }
+                }
+              }}
+            >
               {({ signOut, user }) => (
               <>
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', justifyContent: 'center' }}>
+                  <button 
+                    onClick={() => setActiveTab('shortener')} 
+                    style={{ background: 'none', border: 'none', color: activeTab === 'shortener' ? 'var(--accent-2)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', fontWeight: activeTab === 'shortener' ? 700 : 500, transition: 'color 0.2s' }}
+                  >
+                    Shortener
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('profile')} 
+                    style={{ background: 'none', border: 'none', color: activeTab === 'profile' ? 'var(--accent-2)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', fontWeight: activeTab === 'profile' ? 700 : 500, transition: 'color 0.2s' }}
+                  >
+                    My Profile
+                  </button>
+                </div>
+
+                {activeTab === 'shortener' ? (
+                  <>
           <div className="shortener__card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Welcome, {user?.signInDetails?.loginId || 'User'}</span>
               <button 
                 onClick={signOut} 
-                style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' }}
+                style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' }}
                 onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
                 onMouseOut={(e) => e.target.style.background = 'transparent'}
               >
@@ -276,6 +305,12 @@ function App() {
               ))}
             </div>
           )}
+                  </>
+                ) : (
+                  <div className="shortener__card" style={{ maxWidth: '800px' }}>
+                    <Profile user={user} signOut={signOut} />
+                  </div>
+                )}
               </>
             )}
             </Authenticator>
