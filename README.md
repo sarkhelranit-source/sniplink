@@ -1,57 +1,140 @@
-# Serverless URL Shortener & Redirect Engine
-An enterprise-grade, high-performance, cost-effective serverless URL shortening application built on AWS and globally accelerated via CloudFront and Cloudflare.
+# ⚡ Sniplink — Serverless URL Shortener
+
+A production-grade, serverless URL shortening platform built entirely on AWS. Sniplink delivers instant redirects, user authentication, and a personal link dashboard — all for under $0.25/month at scale.
+
+**🌐 Live:** [snip.rsarkhel.com](https://snip.rsarkhel.com)
 
 ---
 
-## 🏗️ Architecture Design
+## 🏗️ Architecture
 
-![Sniplink Architecture Diagram](sniplink_architecture_fixed_1781205504234.png)
+![Sniplink Architecture Diagram](sniplink_architecture_v2.png)
 
-### ⚡ Technical Execution Flow
-1. **DNS Resolution**: The user requests a page or short URL via `snip.yourdomain.com`. Cloudflare resolves this to the Amazon CloudFront distribution CNAME (`d1xxxxxxxxxxxx.cloudfront.net`).
-2. **Global Acceleration**: CloudFront terminates the SSL (using a certificate generated in AWS Certificate Manager) and inspects the URL path.
-3. **Smart Path Routing**:
-   * **Static Assets**: Requests for `/index.html`, `/assets/*` or `favicon.svg` are securely routed via **Origin Access Control (OAC)** to a private S3 bucket (`sniplink-frontend`).
-   * **Write Action**: `POST /shorten` requests are routed directly to the Amazon API Gateway HTTP API.
-   * **Read Action (Fallback)**: Any dynamic shortcode route `/abc123` is intercepted by the catch-all CloudFront behavior and sent to API Gateway.
-4. **Serverless Execution**:
-   * **Create**: `CreateShortURL` generates a random base64url 6-character hash, stores the mapping (`shortcode` ➔ `originalUrl`) in Amazon DynamoDB, and returns the shortlink.
-   * **Redirect**: `RedirectToOriginal` performs a DynamoDB query and returns a `301 Moved Permanently` header with the target destination, redirecting the client browser in milliseconds.
+### Request Flow
 
----
-
-## 💰 Operational Economics
-Since the entire stack is 100% serverless, it inherits **scale-to-zero** economics.
-
-| Component | AWS Resource | Free Tier Coverage | Monthly Cost (100,000 requests/mo) |
-| :--- | :--- | :--- | :--- |
-| **Frontend** | CloudFront + S3 | 1 TB data transfer / 100M requests | $0.00 |
-| **Compute** | AWS Lambda | 1 Million free requests / month | $0.00 |
-| **Database** | DynamoDB | 25 GB free storage | ~$0.07 (On-Demand) |
-| **Routing** | API Gateway (HTTP) | N/A (Highly optimized pricing) | ~$0.10 |
-| **Security** | AWS Certificate Manager | Unlimited SSL certificates | $0.00 |
-| **Total Cost** | | | **~$0.17 / month** |
+1. **DNS Resolution** — User requests `snip.rsarkhel.com`. Cloudflare resolves the CNAME to the CloudFront distribution.
+2. **Edge Routing** — CloudFront terminates SSL (ACM certificate) and inspects the URL path:
+   - `/index.html`, `/assets/*`, `/favicon.svg` → **S3 Bucket** (via Origin Access Control)
+   - `POST /shorten`, `GET /my-urls` → **API Gateway HTTP API** (JWT-protected)
+   - `GET /{shortcode}` → **API Gateway HTTP API** (public)
+3. **Serverless Compute** — API Gateway invokes the appropriate Lambda function:
+   - **CreateShortURL** — Generates a 6-character `base64url` shortcode, stores the mapping in DynamoDB, and returns the short link.
+   - **GetUserURLs** — Queries a DynamoDB GSI (`userId-index`) to return all links created by the authenticated user.
+   - **RedirectToOriginal** — Performs a DynamoDB `GetItem` lookup and returns a `301 Moved Permanently` redirect.
+4. **Authentication** — Amazon Cognito User Pool issues JWTs. The API Gateway JWT Authorizer validates tokens on protected routes — no auth logic in Lambda.
 
 ---
 
-## 🛠️ Deployment Configuration
+## 🛠️ Tech Stack
 
-### Frontend Deployment
-The React frontend is compiled to clean HTML/CSS/JS and synchronized to S3. To prevent caching issues with modern deployments, the `index.html` file is explicitly uploaded with a `max-age=0` cache header.
+| Layer | Technology |
+|:---|:---|
+| **Frontend** | React 19, Vite 8, AWS Amplify UI |
+| **Authentication** | Amazon Cognito (User Pool + JWT Authorizer) |
+| **API** | Amazon API Gateway (HTTP API) |
+| **Compute** | AWS Lambda (Node.js 24.x) |
+| **Database** | Amazon DynamoDB (On-Demand, GSI for user queries) |
+| **CDN / Routing** | Amazon CloudFront + Cloudflare DNS |
+| **Storage** | Amazon S3 (private bucket, OAC) |
+| **SSL** | AWS Certificate Manager |
+| **CI/CD** | GitHub Actions |
+| **IaC** | AWS CloudFormation |
+
+---
+
+## ✨ Features
+
+- **Instant Redirects** — Sub-50ms DynamoDB lookups with 301 redirects globally cached at CloudFront edge locations.
+- **User Authentication** — Sign up, sign in, and email verification powered by Cognito. No passwords stored in the app.
+- **Personal Dashboard** — View all your shortened links in one place with creation dates.
+- **Password Management** — Change your password securely from the profile tab.
+- **Auto URL Correction** — Automatically prepends `https://` if the protocol is missing.
+- **One-Click Copy** — Copy shortened URLs to clipboard instantly.
+- **Responsive Dark UI** — Glassmorphism design with animated backgrounds, optimized for all screen sizes.
+
+---
+
+### Backend (AWS Lambda — managed in Console)
+
+| Function | Route | Auth | Description |
+|:---|:---|:---|:---|
+| `CreateShortURL` | `POST /shorten` | JWT | Generates shortcode, stores mapping in DynamoDB |
+| `GetUserURLs` | `GET /my-urls` | JWT | Queries user's links via `userId-index` GSI |
+| `RedirectToOriginal` | `GET /{shortcode}` | None | Looks up shortcode, returns 301 redirect |
+
+---
+
+## 🚀 Deployment
+
+### CI/CD Pipeline
+
+Every push to `main` triggers the GitHub Actions workflow:
+
+1. **Checkout** → **Install dependencies** (`npm ci`)
+2. **Inject environment variables** from GitHub Secrets into `.env`
+3. **Build** production assets (`npm run build`)
+4. **Deploy** to S3 (`aws s3 sync dist/ s3://sniplink-frontend/ --delete`)
+5. **Invalidate** CloudFront cache (`/*`)
+
+---
+
+## 💻 Local Development
+
+### Prerequisites
+
+- Node.js 20+
+- An AWS account with the backend resources deployed
+
+### Setup
 
 ```bash
-# 1. Compile production assets
-npm run build
+# Clone the repository
+git clone https://github.com/sarkhelranit/sniplink.git
+cd sniplink
 
-# 2. Sync files to S3 (excluding index.html to cache CSS/JS files indefinitely)
-aws s3 sync dist/ s3://sniplink-frontend/ --delete
+# Install dependencies
+npm install
 
-# 3. Force upload index.html without cache headers
-aws s3 cp dist/index.html s3://sniplink-frontend/index.html \
-  --content-type "text/html" \
-  --cache-control "no-store, no-cache, must-revalidate, max-age=0"
+# Edit .env with your Cognito and API Gateway values
+
+# Start dev server
+npm run dev
 ```
 
-### Infrastructure as Code (IaC)
-The backend database, API endpoints, and Lambda IAM roles are fully defined in the CloudFormation template:
-* 📄 [datacenter-priority-stack.yml](file:///c:/Users/USER/OneDrive/Documents/url-shortner/datacenter-priority-stack.yml)
+The app will be available at `http://localhost:5173`.
+
+### Environment Variables
+
+| Variable | Description |
+|:---|:---|
+| `VITE_API_URL` | API Gateway base URL (e.g., `https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com`) |
+| `VITE_COGNITO_USER_POOL_ID` | Cognito User Pool ID (e.g., `us-east-1_xxxxxxxxx`) |
+| `VITE_COGNITO_CLIENT_ID` | Cognito App Client ID (SPA type, no client secret) |
+
+---
+
+## 💰 Cost Analysis
+
+The entire stack is 100% serverless — **scale-to-zero economics** with no idle costs.
+
+| Component | AWS Resource | Free Tier | Monthly Cost (100K requests) |
+|:---|:---|:---|:---|
+| **Frontend** | CloudFront + S3 | 1 TB transfer / 10M requests | $0.00 |
+| **Auth** | Cognito | 10,000 MAU free | $0.00 |
+| **Compute** | Lambda | 1M requests / 400K GB-s | $0.00 |
+| **Database** | DynamoDB (On-Demand) | 25 GB storage | ~$0.07 |
+| **API** | API Gateway (HTTP) | 1M requests free (12 months) | ~$0.10 |
+| **SSL** | ACM | Unlimited certificates | $0.00 |
+| | | | **~$0.17/month** |
+
+---
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  Built with ☁️ on AWS Serverless by <a href="https://rsarkhel.com">Ranit Sarkhel</a>
+</p>
