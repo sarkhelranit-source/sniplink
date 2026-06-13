@@ -1,8 +1,48 @@
 import { useState } from 'react'
 import './index.css'
-import { Authenticator } from '@aws-amplify/ui-react'
+import { Authenticator, ThemeProvider } from '@aws-amplify/ui-react'
 import '@aws-amplify/ui-react/styles.css'
 import { fetchAuthSession } from 'aws-amplify/auth'
+
+const theme = {
+  name: 'sniplink-theme',
+  tokens: {
+    colors: {
+      brand: {
+        primary: {
+          10: '{colors.purple.10}',
+          20: '{colors.purple.20}',
+          40: '{colors.purple.40}',
+          60: '{colors.purple.60}',
+          80: '#7c3aed', // Match --accent-1
+          90: '#6d28d9',
+          100: '#5b21b6',
+        },
+      },
+      background: {
+        primary: 'transparent',
+        secondary: 'rgba(20, 20, 45, 0.4)',
+      },
+      border: {
+        primary: 'rgba(255, 255, 255, 0.1)',
+        secondary: 'rgba(255, 255, 255, 0.05)',
+      },
+      font: {
+        primary: '#f1f0f8', // Matches var(--text-primary)
+        secondary: '#c8c7d4', // Lighter for placeholders and tabs
+        interactive: '#ffffff',
+      }
+    },
+    components: {
+      authenticator: {
+        router: {
+          borderWidth: '0',
+          backgroundColor: 'transparent',
+        },
+      },
+    },
+  },
+}
 
 // API Gateway Invoke URL from environment variables
 const API_URL = import.meta.env.VITE_API_URL
@@ -145,8 +185,9 @@ function App() {
       {/* Shortener Card */}
       <section className="shortener">
         <div className="container">
-          <Authenticator>
-            {({ signOut, user }) => (
+          <ThemeProvider theme={theme} colorMode="dark">
+            <Authenticator>
+              {({ signOut, user }) => (
               <>
           <div className="shortener__card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -237,7 +278,8 @@ function App() {
           )}
               </>
             )}
-          </Authenticator>
+            </Authenticator>
+          </ThemeProvider>
         </div>
       </section>
 
