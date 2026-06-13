@@ -172,6 +172,16 @@ Resources:
       Tags: {}
       Name: url-shortener-api
 
+  ApiGatewayV2Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ApiGatewayV2Api
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
   LambdaPermissionFunctionCreateShortURL:
     UpdateReplacePolicy: Retain
     Type: AWS::Lambda::Permission
