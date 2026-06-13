@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import './index.css'
+import { Authenticator } from '@aws-amplify/ui-react'
+import '@aws-amplify/ui-react/styles.css'
+import { fetchAuthSession } from 'aws-amplify/auth'
 
-// TODO: Replace with your actual API Gateway Invoke URL
-const API_URL = 'https://mwraaebttk.execute-api.us-east-1.amazonaws.com'
+// API Gateway Invoke URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL
 
 function App() {
   const [url, setUrl] = useState('')
@@ -45,9 +48,15 @@ function App() {
     setLoading(true)
 
     try {
+      const { tokens } = await fetchAuthSession()
+      const token = tokens?.idToken?.toString() || tokens?.accessToken?.toString()
+
       const res = await fetch(`${API_URL}/shorten`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ url: finalUrl }),
       })
 
@@ -136,7 +145,21 @@ function App() {
       {/* Shortener Card */}
       <section className="shortener">
         <div className="container">
+          <Authenticator>
+            {({ signOut, user }) => (
+              <>
           <div className="shortener__card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Welcome, {user?.signInDetails?.loginId || 'User'}</span>
+              <button 
+                onClick={signOut} 
+                style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
+              >
+                Sign Out
+              </button>
+            </div>
             <form className="shortener__form" onSubmit={handleSubmit}>
               <div className="shortener__input-wrap">
                 <span className="shortener__input-icon">🔗</span>
@@ -212,6 +235,9 @@ function App() {
               ))}
             </div>
           )}
+              </>
+            )}
+          </Authenticator>
         </div>
       </section>
 
