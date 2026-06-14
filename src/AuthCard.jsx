@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import { signIn, signUp, confirmSignUp } from 'aws-amplify/auth';
+import { signIn, signUp, confirmSignUp, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import './AuthCard.css';
 
 export const AuthCard = () => {
@@ -8,6 +8,8 @@ export const AuthCard = () => {
   
   const [isFlipped, setIsFlipped] = useState(false);
   const [requireOtp, setRequireOtp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState('REQUEST');
   
   // Form states
   const [email, setEmail] = useState('');
@@ -71,6 +73,55 @@ export const AuthCard = () => {
     }
   };
 
+  const handleForgotPasswordRequest = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const output = await resetPassword({ username: email });
+      const { nextStep } = output;
+      if (nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE') {
+        setForgotPasswordStep('VERIFY');
+      }
+    } catch (err) {
+      setError(err.message || 'Error requesting password reset');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtpOnly = (e) => {
+    e.preventDefault();
+    if (!otp) {
+      setError('Verification code is required');
+      return;
+    }
+    setError('');
+    setForgotPasswordStep('NEW_PASSWORD');
+  };
+
+  const handleForgotPasswordConfirm = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await confirmResetPassword({ username: email, confirmationCode: otp, newPassword: password });
+      setIsForgotPassword(false);
+      setForgotPasswordStep('REQUEST');
+      setRequireOtp(false);
+      setIsFlipped(false);
+      
+      // Auto sign in after reset
+      await signIn({ username: email, password });
+    } catch (err) {
+      setError(err.message || 'Error confirming password reset');
+      if (err.name === 'CodeMismatchException' || (err.message && err.message.toLowerCase().includes('code'))) {
+        setForgotPasswordStep('VERIFY');
+      }
+      setLoading(false);
+    }
+  };
+
   if (requireOtp) {
     return (
       <div className="shortener__card auth-card__otp">
@@ -97,6 +148,99 @@ export const AuthCard = () => {
         {error && <div className="shortener__error" style={{ textAlign: 'center', marginTop: '1rem' }}>{error}</div>}
         <button 
           onClick={() => setRequireOtp(false)} 
+          className="header__link" 
+          style={{ width: '100%', textAlign: 'center', marginTop: '1rem' }}
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  if (isForgotPassword) {
+    return (
+      <div className="shortener__card auth-card__otp">
+        <h2 className="features__title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          {forgotPasswordStep === 'REQUEST' ? 'Reset Password' : 
+           forgotPasswordStep === 'VERIFY' ? 'Verify Code' : 'New Password'}
+        </h2>
+        
+        {forgotPasswordStep === 'REQUEST' ? (
+          <>
+            <p className="features__subtitle" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              Enter your email address to receive a password reset code.
+            </p>
+            <form className="shortener__form" onSubmit={handleForgotPasswordRequest} style={{ flexDirection: 'column', gap: '1rem' }}>
+              <div className="shortener__input-wrap" style={{ width: '100%' }}>
+                <span className="shortener__input-icon" style={{ display: 'flex' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></span>
+                <input
+                  type="email"
+                  className="shortener__input"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="shortener__btn" disabled={loading} style={{ width: '100%' }}>
+                {loading ? <span className="spinner" /> : 'Send Code'}
+              </button>
+            </form>
+          </>
+        ) : forgotPasswordStep === 'VERIFY' ? (
+          <>
+            <p className="features__subtitle" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              We sent a verification code to {email}.
+            </p>
+            <form className="shortener__form" onSubmit={handleVerifyOtpOnly} style={{ flexDirection: 'column', gap: '1rem' }}>
+              <div className="shortener__input-wrap" style={{ width: '100%' }}>
+                <span className="shortener__input-icon" style={{ display: 'flex' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></span>
+                <input
+                  type="text"
+                  className="shortener__input"
+                  placeholder="Verification Code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="shortener__btn" style={{ width: '100%' }}>
+                Verify Code
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="features__subtitle" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              Enter your new password below.
+            </p>
+            <form className="shortener__form" onSubmit={handleForgotPasswordConfirm} style={{ flexDirection: 'column', gap: '1rem' }}>
+              <div className="shortener__input-wrap" style={{ width: '100%' }}>
+                <span className="shortener__input-icon" style={{ display: 'flex' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+                <input
+                  type="password"
+                  className="shortener__input"
+                  placeholder="New Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="shortener__btn" disabled={loading} style={{ width: '100%' }}>
+                {loading ? <span className="spinner" /> : 'Confirm New Password'}
+              </button>
+            </form>
+          </>
+        )}
+        
+        {error && <div className="shortener__error" style={{ textAlign: 'center', marginTop: '1rem' }}>{error}</div>}
+        
+        <button 
+          onClick={() => {
+            setIsForgotPassword(false);
+            setForgotPasswordStep('REQUEST');
+            setError('');
+          }} 
           className="header__link" 
           style={{ width: '100%', textAlign: 'center', marginTop: '1rem' }}
         >
@@ -173,7 +317,12 @@ export const AuthCard = () => {
               
               <button 
                 type="button"
-                onClick={(e) => { e.preventDefault(); toResetPassword(); }} 
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  setIsForgotPassword(true);
+                  setForgotPasswordStep('REQUEST');
+                  setError('');
+                }} 
                 className="header__link" 
                 style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}
               >
