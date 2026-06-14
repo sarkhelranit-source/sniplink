@@ -1,8 +1,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: URL Shortner
+Description: Sniplink — Serverless URL Shortener (Full Stack)
 
-# ----------------- Parameters -----------------
+# =============================================================
+#  RESOURCES
+# =============================================================
 Resources:
+  # -----------------------------------------------------------
+  #  DynamoDB
+  # -----------------------------------------------------------
   DynamoDBTableUrlshortenertable:
     UpdateReplacePolicy: Retain
     Type: AWS::DynamoDB::Table
@@ -14,6 +19,8 @@ Resources:
       AttributeDefinitions:
         - AttributeType: S
           AttributeName: shortcode
+        - AttributeType: S
+          AttributeName: userId
       ContributorInsightsSpecification:
         Enabled: false
       BillingMode: PAY_PER_REQUEST
@@ -31,6 +38,56 @@ Resources:
       TimeToLiveSpecification:
         Enabled: false
 
+  # -----------------------------------------------------------
+  #  Amazon SES
+  # -----------------------------------------------------------
+  SESEmailIdentity:
+    DeletionPolicy: Retain
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: snip.rsarkhel.com
+
+  # -----------------------------------------------------------
+  #  Amazon Cognito — User Pool
+  # -----------------------------------------------------------
+  CognitoUserPool:
+    DeletionPolicy: Retain
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: sniplink-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/snip.rsarkhel.com"
+        From: "Sniplink <noreply@snip.rsarkhel.com>"
+      EmailVerificationSubject: "⚡ Sniplink — Verify your email"
+      EmailVerificationMessage: |
+        <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background-color:#f4f4f7;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 20px;"><tr><td align="center"><table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);"><tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9,#4f46e5);padding:36px 40px;text-align:center;"><table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr><td style="font-size:28px;padding-right:10px;vertical-align:middle;">&#9889;</td><td style="font-size:26px;font-weight:700;color:#ffffff;letter-spacing:0.5px;vertical-align:middle;">Sniplink</td></tr></table><p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.85);font-weight:400;">Serverless URL Shortener</p></td></tr><tr><td style="padding:40px 40px 20px;"><h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1a1a2e;">Verify your email</h1><p style="margin:0 0 28px;font-size:15px;color:#6b7280;line-height:1.6;">Thanks for signing up! Please use the verification code below to complete your registration.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:0 0 28px;"><table role="presentation" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:2px solid #ddd6fe;border-radius:12px;width:100%;"><tr><td style="padding:8px 0 2px;text-align:center;"><span style="font-size:11px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:1.5px;">Verification Code</span></td></tr><tr><td style="padding:4px 0 14px;text-align:center;"><span style="font-size:36px;font-weight:800;color:#4f46e5;letter-spacing:8px;font-family:'Courier New',monospace;">{####}</span></td></tr></table></td></tr></table><p style="margin:0 0 6px;font-size:14px;color:#6b7280;line-height:1.6;">This code will expire in <strong style="color:#1a1a2e;">24 hours</strong>. If you didn't create an account, you can safely ignore this email.</p></td></tr><tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:0;"></td></tr><tr><td style="padding:24px 40px 32px;text-align:center;"><p style="margin:0 0 6px;font-size:12px;color:#9ca3af;">Built with &#9729;&#65039; on AWS Serverless</p><p style="margin:0;font-size:12px;color:#9ca3af;"><a href="https://snip.rsarkhel.com" style="color:#7c3aed;text-decoration:none;font-weight:600;">snip.rsarkhel.com</a></p></td></tr></table><table role="presentation" width="480" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 40px;text-align:center;"><p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">This is an automated message from Sniplink. Please do not reply.</p></td></tr></table></td></tr></table></body></html>
+      LambdaConfig:
+        PostConfirmation: !GetAtt SendWelcomeEmail.Arn
+
+  # -----------------------------------------------------------
+  #  Amazon Cognito — App Client (SPA, no secret)
+  # -----------------------------------------------------------
+
+  # -----------------------------------------------------------
+  #  IAM Roles
+  # -----------------------------------------------------------
   IAMRoleCreateShortURLLambdaRole:
     UpdateReplacePolicy: Retain
     Type: AWS::IAM::Role
@@ -91,6 +148,67 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
 
+  IAMRoleGetUserURLsLambdaRole:
+    DeletionPolicy: Retain
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      MaxSessionDuration: 3600
+      RoleName: GetUserURLsLambdaRole
+      Description: Allows GetUserURLs Lambda to query DynamoDB GSI.
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt DynamoDBTableUrlshortenertable.Arn
+                  - !Sub "${DynamoDBTableUrlshortenertable.Arn}/index/userId-index"
+          PolicyName: GetUserURLsLambdaRolePolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+
+  IAMRoleSendWelcomeEmailLambdaRole:
+    DeletionPolicy: Retain
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      MaxSessionDuration: 3600
+      RoleName: SendWelcomeEmailLambdaRole
+      Description: Allows SendWelcomeEmail Lambda to send emails via SES.
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource:
+                  - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+          PolicyName: SES-SendEmail-Policy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+
+  # -----------------------------------------------------------
+  #  Lambda Functions
+  # -----------------------------------------------------------
   CreateShortURL:
     UpdateReplacePolicy: Retain
     DeletionPolicy: Delete
@@ -101,7 +219,7 @@ Resources:
       Code:
         S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
         S3Key: create-short-url.zip
-      Description: ""
+      Description: "Generates a shortcode and stores the URL mapping in DynamoDB"
       EphemeralStorage:
         Size: 512
       Handler: index.handler
@@ -129,7 +247,7 @@ Resources:
       Code:
         S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
         S3Key: redirect-to-original.zip
-      Description: ""
+      Description: "Looks up a shortcode in DynamoDB and returns a 301 redirect"
       EphemeralStorage:
         Size: 512
       Handler: index.handler
@@ -147,19 +265,84 @@ Resources:
       Timeout: 30
       Role: !GetAtt IAMRoleRedirectLambdaRole.Arn
 
-  ApiGatewayV2RouteLn:
-    UpdateReplacePolicy: Retain
-    Type: AWS::ApiGatewayV2::Route
-    DeletionPolicy: Delete
+  GetUserURLs:
+    DeletionPolicy: Retain
+    Type: AWS::Lambda::Function
     Properties:
-      Target: integrations/vy2kzo2
-      RequestModels: {}
-      AuthorizationScopes: []
-      ApiKeyRequired: false
-      RouteKey: POST /shorten
-      AuthorizationType: NONE
-      ApiId: mwraaebttk
+      FunctionName: GetUserURLs
+      Architectures:
+        - x86_64
+      Code:
+        S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
+        S3Key: get-user-urls.zip
+      Description: "Queries the userId-index GSI to return all links for the authenticated user"
+      EphemeralStorage:
+        Size: 512
+      Handler: index.handler
+      LoggingConfig:
+        LogFormat: Text
+        LogGroup: /aws/lambda/GetUserURLs
+      MemorySize: 128
+      PackageType: Zip
+      RecursiveLoop: Terminate
+      Runtime: nodejs24.x
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+      SnapStart:
+        ApplyOn: None
+      Timeout: 30
+      Role: !GetAtt IAMRoleGetUserURLsLambdaRole.Arn
 
+  SendWelcomeEmail:
+    DeletionPolicy: Retain
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SendWelcomeEmail
+      Architectures:
+        - x86_64
+      Code:
+        S3Bucket: cc-demo-bucket-p1-263846838953-us-east-1-an
+        S3Key: send-welcome-email.zip
+      Description: "Sends a branded welcome email via SES after Cognito post-confirmation"
+      EphemeralStorage:
+        Size: 512
+      Handler: index.handler
+      LoggingConfig:
+        LogFormat: Text
+        LogGroup: /aws/lambda/SendWelcomeEmail
+      MemorySize: 128
+      PackageType: Zip
+      RecursiveLoop: Terminate
+      Runtime: nodejs24.x
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+      SnapStart:
+        ApplyOn: None
+      Timeout: 30
+      Role: !GetAtt IAMRoleSendWelcomeEmailLambdaRole.Arn
+
+  # -----------------------------------------------------------
+  #  Lambda Permissions
+  # -----------------------------------------------------------
+  LambdaPermissionFunctionCreateShortURL:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt CreateShortURL.Arn
+      Action: lambda:InvokeFunction
+      SourceArn: arn:aws:apigateway:us-east-1::/apis/mwraaebttk/*/*/*
+      Principal: apigateway.amazonaws.com
+
+  LambdaPermissionFunctionRedirectToOriginal:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt RedirectToOriginal.Arn
+      Action: lambda:InvokeFunction
+      SourceArn: arn:aws:apigateway:us-east-1::/apis/mwraaebttk/*/*/*
+      Principal: apigateway.amazonaws.com
+
+  # -----------------------------------------------------------
+  #  API Gateway — HTTP API
+  # -----------------------------------------------------------
   ApiGatewayV2Api:
     UpdateReplacePolicy: Retain
     Type: AWS::ApiGatewayV2::Api
@@ -182,69 +365,62 @@ Resources:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
 
-  LambdaPermissionFunctionCreateShortURL:
-    UpdateReplacePolicy: Retain
-    Type: AWS::Lambda::Permission
-    DeletionPolicy: Delete
-    Properties:
-      FunctionName: arn:aws:lambda:us-east-1:263846838953:function:CreateShortURL
-      Action: lambda:InvokeFunction
-      SourceArn: arn:aws:execute-api:us-east-1:263846838953:mwraaebttk/*/*/shorten
-      Principal: apigateway.amazonaws.com
-
+  # -----------------------------------------------------------
+  # -----------------------------------------------------------
+  #  API Gateway — Integrations
+  # -----------------------------------------------------------
   ApiGatewayV2IntegrationN9:
     UpdateReplacePolicy: Retain
     Type: AWS::ApiGatewayV2::Integration
     DeletionPolicy: Delete
     Properties:
-      IntegrationUri: arn:aws:lambda:us-east-1:263846838953:function:CreateShortURL
+      ApiId: mwraaebttk
+      IntegrationUri: !GetAtt CreateShortURL.Arn
       PayloadFormatVersion: "2.0"
       ConnectionType: INTERNET
-      RequestTemplates: {}
-      ResponseParameters: {}
       TimeoutInMillis: 30000
-      ApiId: mwraaebttk
       IntegrationMethod: POST
       IntegrationType: AWS_PROXY
-
-  ApiGatewayV2Route:
-    UpdateReplacePolicy: Retain
-    Type: AWS::ApiGatewayV2::Route
-    DeletionPolicy: Delete
-    Properties:
-      Target: integrations/sxu65j8
-      RequestModels: {}
-      AuthorizationScopes: []
-      ApiKeyRequired: false
-      RouteKey: GET /{shortcode}
-      AuthorizationType: NONE
-      ApiId: mwraaebttk
 
   ApiGatewayV2Integration:
     UpdateReplacePolicy: Retain
     Type: AWS::ApiGatewayV2::Integration
     DeletionPolicy: Delete
     Properties:
-      IntegrationUri: arn:aws:lambda:us-east-1:263846838953:function:RedirectToOriginal
+      ApiId: mwraaebttk
+      IntegrationUri: !GetAtt RedirectToOriginal.Arn
       PayloadFormatVersion: "2.0"
       ConnectionType: INTERNET
-      RequestTemplates: {}
-      ResponseParameters: {}
       TimeoutInMillis: 30000
-      ApiId: mwraaebttk
       IntegrationMethod: POST
       IntegrationType: AWS_PROXY
 
-  LambdaPermissionFunctionRedirectToOriginal:
+  # -----------------------------------------------------------
+  #  API Gateway — Routes
+  # -----------------------------------------------------------
+  ApiGatewayV2RouteLn:
     UpdateReplacePolicy: Retain
-    Type: AWS::Lambda::Permission
+    Type: AWS::ApiGatewayV2::Route
     DeletionPolicy: Delete
     Properties:
-      FunctionName: arn:aws:lambda:us-east-1:263846838953:function:RedirectToOriginal
-      Action: lambda:InvokeFunction
-      SourceArn: arn:aws:execute-api:us-east-1:263846838953:mwraaebttk/*/*/{shortcode}
-      Principal: apigateway.amazonaws.com
+      ApiId: mwraaebttk
+      RouteKey: POST /shorten
+      AuthorizationType: NONE
+      Target: integrations/vy2kzo2
 
+  ApiGatewayV2Route:
+    UpdateReplacePolicy: Retain
+    Type: AWS::ApiGatewayV2::Route
+    DeletionPolicy: Delete
+    Properties:
+      ApiId: mwraaebttk
+      RouteKey: GET /{shortcode}
+      AuthorizationType: NONE
+      Target: integrations/sxu65j8
+
+  # -----------------------------------------------------------
+  #  CloudFront Distribution
+  # -----------------------------------------------------------
   CloudFrontDistribution:
     UpdateReplacePolicy: Retain
     Type: AWS::CloudFront::Distribution
@@ -266,12 +442,11 @@ Resources:
             OriginShield:
               Enabled: false
             S3OriginConfig:
-              OriginReadTimeout: 30
               OriginAccessIdentity: ""
             OriginPath: ""
-            Id: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            Id: sniplink-frontend-s3-origin
           - Id: url-shortener-api
-            DomainName: mwraaebttk.execute-api.us-east-1.amazonaws.com
+            DomainName: https://mwraaebttk.execute-api.us-east-1.amazonaws.com
             CustomOriginConfig:
               OriginProtocolPolicy: https-only
               OriginSSLProtocols:
@@ -323,7 +498,7 @@ Resources:
             RestrictionType: none
         CacheBehaviors:
           - PathPattern: /index.html
-            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            TargetOriginId: sniplink-frontend-s3-origin
             ViewerProtocolPolicy: redirect-to-https
             CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
             AllowedMethods:
@@ -335,7 +510,7 @@ Resources:
             Compress: true
             SmoothStreaming: false
           - PathPattern: /assets/*
-            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            TargetOriginId: sniplink-frontend-s3-origin
             ViewerProtocolPolicy: redirect-to-https
             CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
             AllowedMethods:
@@ -347,7 +522,7 @@ Resources:
             Compress: true
             SmoothStreaming: false
           - PathPattern: /favicon.svg
-            TargetOriginId: sniplink-frontend.s3.us-east-1.amazonaws.com-mq9qv0intp4
+            TargetOriginId: sniplink-frontend-s3-origin
             ViewerProtocolPolicy: redirect-to-https
             CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
             AllowedMethods:
@@ -374,10 +549,22 @@ Resources:
         OriginAccessControlOriginType: s3
         Name: sniplink-frontend.s3.us-east-1.amazonaws.com
 
+  # -----------------------------------------------------------
+  #  S3 — Frontend Bucket
+  # -----------------------------------------------------------
   S3BucketSniplinkfrontend:
     UpdateReplacePolicy: Retain
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W3045
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: "Access logging is not required for this frontend bucket"
     Properties:
       AbacStatus: Disabled
       WebsiteConfiguration:
@@ -395,9 +582,6 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - BucketKeyEnabled: true
-            BlockedEncryptionTypes:
-              EncryptionType:
-                - SSE-C
             ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
 
@@ -406,14 +590,14 @@ Resources:
     Type: AWS::S3::BucketPolicy
     DeletionPolicy: Delete
     Properties:
-      Bucket: sniplink-frontend
+      Bucket: !Ref S3BucketSniplinkfrontend
       PolicyDocument:
         Version: "2008-10-17"
         Statement:
           - Condition:
               StringEquals:
                 AWS:SourceArn: arn:aws:cloudfront::263846838953:distribution/E2WN2KCMZOO0Q5
-            Resource: arn:aws:s3:::sniplink-frontend/*
+            Resource: !Sub "arn:aws:s3:::${S3BucketSniplinkfrontend}/*"
             Action: s3:GetObject
             Effect: Allow
             Principal:

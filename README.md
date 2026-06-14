@@ -8,7 +8,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
 
 ## 🏗️ Architecture
 
-![Sniplink Architecture Diagram](sniplink_architecture_v2.png)
+![Sniplink Architecture Diagram](sniplink_architecture_v3.png)
 
 ### Request Flow
 
@@ -22,6 +22,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
    - **GetUserURLs** — Queries a DynamoDB GSI (`userId-index`) to return all links created by the authenticated user.
    - **RedirectToOriginal** — Performs a DynamoDB `GetItem` lookup and returns a `301 Moved Permanently` redirect.
 4. **Authentication** — Amazon Cognito User Pool issues JWTs. The API Gateway JWT Authorizer validates tokens on protected routes — no auth logic in Lambda.
+5. **Email Notifications** — When a user confirms their email in Cognito, a post-confirmation trigger invokes the **SendWelcomeEmail** Lambda function, which uses **Amazon SES** to send a welcome email.
 
 ---
 
@@ -36,6 +37,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
 | **Database** | Amazon DynamoDB (On-Demand, GSI for user queries) |
 | **CDN / Routing** | Amazon CloudFront + Cloudflare DNS |
 | **Storage** | Amazon S3 (private bucket, OAC) |
+| **Email Service** | Amazon Simple Email Service (SES) |
 | **SSL** | AWS Certificate Manager |
 | **CI/CD** | GitHub Actions |
 | **IaC** | AWS CloudFormation |
@@ -61,6 +63,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
 | `CreateShortURL` | `POST /shorten` | JWT | Generates shortcode, stores mapping in DynamoDB |
 | `GetUserURLs` | `GET /my-urls` | JWT | Queries user's links via `userId-index` GSI |
 | `RedirectToOriginal` | `GET /{shortcode}` | None | Looks up shortcode, returns 301 redirect |
+| `SendWelcomeEmail` | Cognito Trigger | None | Sends a welcome email via Amazon SES upon user verification |
 
 ---
 
