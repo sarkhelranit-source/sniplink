@@ -8,7 +8,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
 
 ## 🏗️ Architecture
 
-![Sniplink Architecture Diagram](sniplink_architecture_v3.png)
+![Sniplink Architecture Diagram](sniplink_architecture_v4.png)
 
 ### Request Flow
 
@@ -22,7 +22,7 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
    - **GetUserURLs** — Queries a DynamoDB GSI (`userId-index`) to return all links created by the authenticated user.
    - **RedirectToOriginal** — Performs a DynamoDB `GetItem` lookup and returns a `301 Moved Permanently` redirect.
 4. **Authentication** — Amazon Cognito User Pool issues JWTs. The API Gateway JWT Authorizer validates tokens on protected routes — no auth logic in Lambda.
-5. **Email Notifications** — When a user confirms their email in Cognito, a post-confirmation trigger invokes the **SendWelcomeEmail** Lambda function, which uses **Amazon SES** to send a welcome email.
+5. **Email Notifications** — Cognito invokes **Amazon SES** directly to send the initial verification code email. Once the user successfully verifies their email, Cognito triggers the **SendWelcomeEmail** Lambda function. The Lambda then invokes SES to send the welcome email back to the user.
 
 ---
 
