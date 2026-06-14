@@ -7,6 +7,33 @@
   justify-content: center;
   padding: 20px 0;
   gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-card-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  max-width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  animation: float-glow 6s ease-in-out infinite alternate, fade-in-glow 1.5s ease-out forwards;
+}
+
+@keyframes float-glow {
+  0% { transform: translate(-50%, -50%) scale(0.95); }
+  100% { transform: translate(-50%, -45%) scale(1.05); }
+}
+
+@keyframes fade-in-glow {
+  to { opacity: 0.6; }
 }
 
 /* Switch container styling */
@@ -106,6 +133,16 @@
   perspective: 1000px;
   width: 340px;
   height: 420px;
+  animation: cardEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes cardEnter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .flip-card__inner {
@@ -154,6 +191,9 @@
   width: 340px;
   margin: 20px auto;
   padding: 2rem;
+  animation: cardEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 @media (max-width: 640px) {
