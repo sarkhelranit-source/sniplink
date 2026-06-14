@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import './index.css'
-import { Authenticator, ThemeProvider } from '@aws-amplify/ui-react'
+import { ThemeProvider } from '@aws-amplify/ui-react'
 import Profile from './Profile'
 import '@aws-amplify/ui-react/styles.css'
 import { fetchAuthSession } from 'aws-amplify/auth'
+import { AuthWrapper } from './AuthWrapper'
 
 const theme = {
   name: 'sniplink-theme',
@@ -188,16 +189,7 @@ function App() {
       <section className="shortener">
         <div className="container">
           <ThemeProvider theme={theme} colorMode="dark">
-            <Authenticator
-              formFields={{
-                signIn: {
-                  username: { label: 'Email', placeholder: 'Enter your Email' }
-                },
-                signUp: {
-                  username: { label: 'Email', placeholder: 'Enter your Email' }
-                }
-              }}
-            >
+            <AuthWrapper>
               {({ signOut, user }) => (
               <>
                 {/* Tabs */}
@@ -313,7 +305,7 @@ function App() {
                 )}
               </>
             )}
-            </Authenticator>
+            </AuthWrapper>
           </ThemeProvider>
         </div>
       </section>
