@@ -80,10 +80,55 @@ function App() {
       return
     }
 
+    // 1. Length validation (prevent database flooding / standard browser limit)
+    if (trimmed.length > 2048) {
+      setError('URL is too long (maximum 2048 characters).')
+      return
+    }
+
+    // 2. Spaces check
+    if (/\s/.test(trimmed)) {
+      setError('URL cannot contain spaces.')
+      return
+    }
+
+    // 3. Protocol validation
+    const protocolMatch = trimmed.match(/^([^/:]+):(?:\/\/)?/)
+    if (protocolMatch) {
+      const proto = protocolMatch[1].toLowerCase()
+      if (proto !== 'http' && proto !== 'https') {
+        setError('Only HTTP and HTTPS protocols are supported.')
+        return
+      }
+    }
+
     // Auto-prepend https:// if missing
     const finalUrl = trimmed.match(/^https?:\/\//) ? trimmed : `https://${trimmed}`
 
     if (!isValidUrl(finalUrl)) {
+      setError('Please enter a valid URL (e.g., https://example.com).')
+      return
+    }
+
+    try {
+      const parsedUrl = new URL(finalUrl)
+      const hostname = parsedUrl.hostname.toLowerCase()
+
+      // 4. Loop / Self-shortening prevention
+      const currentHost = window.location.hostname.toLowerCase()
+      const disallowedHosts = [currentHost, 'snip.rsarkhel.com']
+      if (disallowedHosts.includes(hostname)) {
+        setError('Cannot shorten links pointing to Sniplink itself.')
+        return
+      }
+
+      // 5. Basic domain name format validation (must contain a dot unless it is localhost or IP)
+      const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(':')
+      if (hostname !== 'localhost' && !isIp && !hostname.includes('.')) {
+        setError('Please enter a valid domain name (e.g., example.com).')
+        return
+      }
+    } catch {
       setError('Please enter a valid URL (e.g., https://example.com).')
       return
     }
