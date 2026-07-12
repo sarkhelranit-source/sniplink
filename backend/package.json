@@ -1,0 +1,19 @@
+{
+  "name": "sniplink-backend",
+  "version": "1.0.0",
+  "description": "TypeScript backend for Sniplink AWS Lambdas",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.714.0",
+    "@aws-sdk/lib-dynamodb": "^3.714.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.146",
+    "@types/node": "^20.17.10",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  }
+}

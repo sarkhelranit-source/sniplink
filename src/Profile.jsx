@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchAuthSession, updatePassword } from 'aws-amplify/auth';
+import { QRCodeCanvas } from 'qrcode.react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -131,20 +132,34 @@ export default function Profile({ user, signOut }) {
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', textAlign: 'left' }}>
                   <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Short Link</th>
                   <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Original URL</th>
+                  <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Tags</th>
                   <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Created</th>
+                  <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>QR</th>
                 </tr>
               </thead>
               <tbody>
                 {urls.map((u) => (
                   <tr key={u.shortcode} style={{ borderBottom: '1px solid var(--border-card)' }}>
                     <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>
-                      <a href={u.shortUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>{u.shortcode}</a>
+                      <a href={`${window.location.origin}/${u.shortcode}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>{u.shortcode}</a>
                     </td>
                     <td style={{ padding: '0.75rem 0.5rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
                       {u.originalUrl}
                     </td>
+                    <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-primary)' }}>
+                      {u.tags && u.tags.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                          {u.tags.map(t => <span key={t} style={{ background: 'var(--accent-1)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>{t}</span>)}
+                        </div>
+                      ) : '-'}
+                    </td>
                     <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                       {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>
+                      <div style={{ background: 'white', padding: '0.2rem', borderRadius: '4px', display: 'inline-block' }}>
+                        <QRCodeCanvas value={`${window.location.origin}/${u.shortcode}`} size={48} />
+                      </div>
                     </td>
                   </tr>
                 ))}

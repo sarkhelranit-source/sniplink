@@ -51,8 +51,6 @@ A production-grade, serverless URL shortening platform built entirely on AWS. Sn
 - **Personal Dashboard** — View all your shortened links in one place with creation dates.
 - **Password Management** — Change your password securely from the profile tab.
 - **Auto URL Correction** — Automatically prepends `https://` if the protocol is missing.
-- **One-Click Copy** — Copy shortened URLs to clipboard instantly.
-- **Responsive Dark UI** — Glassmorphism design with animated backgrounds, optimized for all screen sizes.
 
 ---
 

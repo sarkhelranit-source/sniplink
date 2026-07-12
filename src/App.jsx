@@ -58,6 +58,13 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [history, setHistory] = useState([])
   const [activeTab, setActiveTab] = useState('shortener') // 'shortener' or 'profile'
+  
+  // Advanced options state
+  const [customAlias, setCustomAlias] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [password, setPassword] = useState('')
+  const [tags, setTags] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const isValidUrl = (string) => {
     try {
@@ -139,13 +146,19 @@ function App() {
       const { tokens } = await fetchAuthSession()
       const token = tokens?.idToken?.toString() || tokens?.accessToken?.toString()
 
+      const bodyPayload = { url: finalUrl }
+      if (customAlias.trim()) bodyPayload.customAlias = customAlias.trim()
+      if (expiresAt) bodyPayload.expiresAt = new Date(expiresAt).toISOString()
+      if (password) bodyPayload.password = password
+      if (tags.trim()) bodyPayload.tags = tags.split(',').map(t => t.trim()).filter(Boolean)
+
       const res = await fetch(`${API_URL}/shorten`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ url: finalUrl }),
+        body: JSON.stringify(bodyPayload),
       })
 
       if (!res.ok) {
@@ -164,6 +177,11 @@ function App() {
         ...prev.slice(0, 4),
       ])
       setUrl('')
+      setCustomAlias('')
+      setExpiresAt('')
+      setPassword('')
+      setTags('')
+      setShowAdvanced(false)
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -281,6 +299,33 @@ function App() {
                   spellCheck="false"
                 />
               </div>
+              
+              <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} style={{ background: 'none', border: 'none', color: 'var(--accent-2)', cursor: 'pointer', fontSize: '0.85rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: 0 }}>
+                {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'} 
+                <span style={{ fontSize: '0.6rem' }}>{showAdvanced ? '▲' : '▼'}</span>
+              </button>
+
+              {showAdvanced && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Custom Alias (optional)</label>
+                    <input type="text" value={customAlias} onChange={e => setCustomAlias(e.target.value)} placeholder="e.g. my-portfolio" className="shortener__input" style={{ padding: '0.6rem', fontSize: '0.9rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Password Protect (optional)</label>
+                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter a password" className="shortener__input" style={{ padding: '0.6rem', fontSize: '0.9rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Expiration Date (optional)</label>
+                    <input type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="shortener__input" style={{ padding: '0.6rem', fontSize: '0.9rem', colorScheme: 'dark' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Tags (comma-separated, optional)</label>
+                    <input type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. work, social" className="shortener__input" style={{ padding: '0.6rem', fontSize: '0.9rem' }} />
+                  </div>
+                </div>
+              )}
+
               <button
                 id="shorten-btn"
                 type="submit"
