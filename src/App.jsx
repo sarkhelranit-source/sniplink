@@ -47,7 +47,7 @@ const theme = {
 }
 
 // API Gateway Invoke URL from environment variables
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 function App() {
   const [url, setUrl] = useState('')
@@ -58,6 +58,13 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [history, setHistory] = useState([])
   const [activeTab, setActiveTab] = useState('shortener') // 'shortener' or 'profile'
+  
+  // Advanced options state
+  const [customAlias, setCustomAlias] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [password, setPassword] = useState('')
+  const [tags, setTags] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const isValidUrl = (string) => {
     try {
@@ -139,13 +146,19 @@ function App() {
       const { tokens } = await fetchAuthSession()
       const token = tokens?.idToken?.toString() || tokens?.accessToken?.toString()
 
+      const bodyPayload = { url: finalUrl }
+      if (customAlias.trim()) bodyPayload.customAlias = customAlias.trim()
+      if (expiresAt) bodyPayload.expiresAt = new Date(expiresAt).toISOString()
+      if (password) bodyPayload.password = password
+      if (tags.trim()) bodyPayload.tags = tags.split(',').map(t => t.trim()).filter(Boolean)
+
       const res = await fetch(`${API_URL}/shorten`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ url: finalUrl }),
+        body: JSON.stringify(bodyPayload),
       })
 
       if (!res.ok) {
@@ -164,6 +177,11 @@ function App() {
         ...prev.slice(0, 4),
       ])
       setUrl('')
+      setCustomAlias('')
+      setExpiresAt('')
+      setPassword('')
+      setTags('')
+      setShowAdvanced(false)
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -268,27 +286,56 @@ function App() {
               </button>
             </div>
             <form className="shortener__form" onSubmit={handleSubmit}>
-              <div className="shortener__input-wrap">
-                <span className="shortener__input-icon">🔗</span>
-                <input
-                  id="url-input"
-                  type="text"
-                  className="shortener__input"
-                  placeholder="Paste your long URL here..."
-                  value={url}
-                  onChange={(e) => { setUrl(e.target.value); setError('') }}
-                  autoComplete="off"
-                  spellCheck="false"
-                />
+              <div className="shortener__main-row">
+                <div className="shortener__input-wrap">
+                  <span className="shortener__input-icon">🔗</span>
+                  <input
+                    id="url-input"
+                    type="text"
+                    className="shortener__input"
+                    placeholder="Paste your long URL here..."
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); setError('') }}
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                </div>
+                <button
+                  id="shorten-btn"
+                  type="submit"
+                  className="shortener__btn"
+                  disabled={loading}
+                >
+                  {loading ? <span className="spinner" /> : 'Shorten'}
+                </button>
               </div>
-              <button
-                id="shorten-btn"
-                type="submit"
-                className="shortener__btn"
-                disabled={loading}
-              >
-                {loading ? <span className="spinner" /> : 'Shorten'}
+              
+              <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} style={{ background: 'none', border: 'none', color: 'var(--accent-2)', cursor: 'pointer', fontSize: '0.85rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: 0 }}>
+                {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'} 
+                <span style={{ fontSize: '0.6rem' }}>{showAdvanced ? '▲' : '▼'}</span>
               </button>
+
+              {showAdvanced && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem', background: 'var(--bg-card)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-card)', textAlign: 'left', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>Custom Alias (optional)</label>
+                    <input type="text" value={customAlias} onChange={e => setCustomAlias(e.target.value)} placeholder="e.g. my-portfolio" className="shortener__input" style={{ padding: '0.7rem', fontSize: '0.9rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>Password Protect (optional)</label>
+                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter a password" className="shortener__input" style={{ padding: '0.7rem', fontSize: '0.9rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>Expiration Date (optional)</label>
+                    <input type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="shortener__input" style={{ padding: '0.7rem', fontSize: '0.9rem', colorScheme: 'dark' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>Tags (comma-separated, optional)</label>
+                    <input type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. work, social" className="shortener__input" style={{ padding: '0.7rem', fontSize: '0.9rem' }} />
+                  </div>
+                </div>
+              )}
+
             </form>
             <div className="shortener__error">{error}</div>
 

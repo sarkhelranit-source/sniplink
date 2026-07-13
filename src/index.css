@@ -269,8 +269,15 @@ body {
 
 .shortener__form {
   display: flex;
-  gap: 0.65rem;
+  flex-direction: column;
+  gap: 1rem;
   margin-bottom: 0.75rem;
+}
+
+.shortener__main-row {
+  display: flex;
+  gap: 0.65rem;
+  width: 100%;
 }
 
 .shortener__input-wrap {
@@ -579,8 +586,13 @@ body {
     flex-direction: column;
   }
 
+  .shortener__main-row {
+    flex-direction: column;
+  }
+
   .shortener__btn {
     padding: 0.85rem;
+    width: 100%;
   }
 
   .header__links {
@@ -597,3 +609,4 @@ body {
     text-align: center;
   }
 }
+
